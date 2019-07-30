@@ -54,8 +54,7 @@
     ; handle base cases
     [(or (? symbol?) (? integer?) '(read)) exprs]
     ; ??? in rust we add this binding to the alist but maybe that's not right...
-    [(list 'let (list [list var val]) body)
-     (error "rco-exp let case")]
+    [(list 'let (list [list var val]) body) exprs]
     ; this case should call rco-arg on each of the args
     ; then build a new expr with bindings from the rco-arg calls
     ; + and - need pattern match 1 or more
@@ -110,13 +109,14 @@
 ; SIMPLE OPERATIONS should stay simple when called by rco-exp
 (check-equal? (rco-exp '(+ 2 2)) '(+ 2 2))
 (check-equal? (rco-exp (list '+ 2 2)) '(+ 2 2))
-; TODO: handle this...
-;(check-equal? (rco-exp '(let ([x 2]) x)) '(let ([x 2]) x))
 (check-equal? (rco-exp (list 'read)) '(read))
 
-(displayln "yes")
-(displayln (rco-exp '(+ 2 (- (+ 3 4)))))
-(displayln (rco-arg '(let ([x 1]) x)))
+; SIMPLE OPERATIONS should stay simple when called by rco-arg
+(verify-rco-arg-output-is-empty '(read))
+
+; TEST the `let` stuff
+; TODO: handle this...
+(check-equal? (rco-exp '(let ([x 2]) x)) '(let ([x 2]) x))
 
 ; BAD exprs rco-exp
 (check-equal? (rco-exp (list 2)) "panic!")
@@ -126,8 +126,25 @@
 ; BAD exprs rco-arg
 (check-equal? (rco-arg #t) "panic!")
 
-(displayln '(rco-exp '(+ (- 3) (- 4))))
-(displayln (rco-exp '(+ (- 3) (- 4))))
- 
+; COMPLEX OPERATIONS should get simplified
+(check-match (rco-exp '(+ (- 3) (- 4)))
+              (list 'let (list (list (? symbol? t1) '(- 3)))
+                    (list 'let (list (list (? symbol? t2) '(- 4)))
+                          (list '+ t1 t2))))
+; even if you arbitrarily place the complex op
+(check-match (rco-exp '(+ 3 (- 4)))
+              (list 'let (list (list (? symbol? t1) '(- 4)))
+                          (list '+ 3 t1)))
+; even if you arbitrarily place the complex op
+(check-match (rco-exp '(+ (- 3) 4))
+              (list 'let (list (list (? symbol? t1) '(- 3)))
+                          (list '+ t1 4)))
+; very hard nested case <CURRENTLY_FAILS_INTENTIONALLY>
+(check-match (rco-exp '(+ 2 (- (+ 3 4))))
+               ; TODO write helper called "sym-begins-with-tmp?"
+              (list 'let (list (list (? symbol? t1) '(+ 3 4)))
+                    (list 'let (list (list (? symbol? t2) '(- t1))) '(+ 2 t2))))
 
+(displayln "yes")
+ 
 (displayln "tests finished")
