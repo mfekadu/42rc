@@ -9,6 +9,10 @@
 (define (make-let var val body)
   (list 'let (list [list var val]) body))
 
+(define OPS (hash '+ 1 '- 2 'read 3))
+(define (op? x) (hash-has-key? OPS x))
+(check-true (op? '+))
+(check-false (op? 1))
 
 (define not-empty? (λ (l) (not (empty? l))))
 ;test not empty
@@ -48,28 +52,17 @@
     [(or (? symbol?) (? integer?) '(read)) exprs]
     ; ??? in rust we add this binding to the alist but maybe that's not right...
     [(list 'let (list [list var val]) body)
-     (displayln (list var val body)) 
      (error "rco-exp let case")]
     ; this case should call rco-arg on each of the args
     ; then build a new expr with bindings from the rco-arg calls
-    [(list op args ...)
-     (displayln (list "match-op-exprs" exprs))
-     (define-values [syms alists]
+    [(list (? op? op) args ...)
+     (define-values [syms bindings]
        (for/lists (l1 l2) 
                 ([e exprs])
        (rco-arg e)))
-     (displayln (list "rco-exp syms " syms))
-     (displayln (list "rco-exp alists " alists))
-     ; loop over alists
-
-     ; generate the final expr by
-     (for/list ([binds alists] ; loop over both the binds
-                [sym syms])    ; and the corresponding syms
-       (match binds
-         ; match anything complex
-         [(list var val) (make-let var val syms)]
-         ; match the op symbol for e.g.
-         [_ sym]))]))
+     ; generate the final expr
+     (make-nested-lets bindings syms)]
+    [_ "panic!"]))
 
  ; Given an expr in R1, return a temp symbol name and an alist mapping from the symbol name to an expr in R1
 (define (rco-arg exprs) ; returns expr, alist
@@ -109,6 +102,10 @@
 
 ; SIMPLE OPERATIONS should stay simple when called by rco-exp
 (check-equal? (rco-exp '(+ 2 2)) '(+ 2 2))
+(check-equal? (rco-exp (list '+ 2 2)) '(+ 2 2))
+; TODO: handle this...
+;(check-equal? (rco-exp '(let ([x 2]) x)) '(let ([x 2]) x))
+(check-equal? (rco-exp (list 'read)) '(read))
 
 (displayln "yes")
 (rco-exp '(+ 2 (- (+ 3 4))))
@@ -123,9 +120,6 @@
 ;(check-equal? (rco-arg #t) "panic!")
 ;
 ;; SIMPLE exprs SHOULD STAY SIMPLE
-;(check-equal? (rco-exp (list '+ 2 2)) '(+ 2 2))
-;(check-equal? (rco-exp '(let ([x 2]) x)) '(let ([x 2]) x))
-;(check-equal? (rco-exp (list 'read)) '(read))
 ;
 
 (displayln '(rco-exp '(+ (- 3) (- 4))))
