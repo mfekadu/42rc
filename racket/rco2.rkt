@@ -11,8 +11,11 @@
 
 (define OPS (hash '+ 1 '- 2 'read 3))
 (define (op? x) (hash-has-key? OPS x))
+(define (is-read? x) (eq? x 'read))
 (check-true (op? '+))
 (check-false (op? 1))
+(check-true (is-read? 'read))
+(check-false (is-read? 'foo))
 
 (define not-empty? (λ (l) (not (empty? l))))
 ;test not empty
@@ -55,7 +58,8 @@
      (error "rco-exp let case")]
     ; this case should call rco-arg on each of the args
     ; then build a new expr with bindings from the rco-arg calls
-    [(list (? op? op) args ...)
+    ; + and - need pattern match 1 or more
+    [(or (list (? op? op) _ ..1) (list (? is-read? op)))
      (define-values [syms bindings]
        (for/lists (l1 l2) 
                 ([e exprs])
@@ -70,10 +74,13 @@
     ; handle simple base cases
     [(or (? symbol?) (? integer?) '(read)) (values exprs '())]
     ; TODO let case should bind var to val in an alist and evaluate the body somehow 
-    [(list 'let (list [list var val]) body) (error "rco-arg let case")]
-    [(list op args ...) (let ([tmp-name (gensym 'tmp)])
+    [(list 'let (list [list var val]) body) exprs]
+    ; + and - need pattern match 1 or more
+    [(or (list (? op? op) _ ..1) (list (? is-read? op)))
+         (let ([tmp-name (gensym 'tmp)])
                           (values tmp-name
-                                  (list tmp-name exprs)))]))
+                                  (list tmp-name exprs)))]
+    [_ "panic!"]))
 
 ; TEST HELPERS
 (define make-list-from-vals (λ (a b) (list a b)))
@@ -108,19 +115,16 @@
 (check-equal? (rco-exp (list 'read)) '(read))
 
 (displayln "yes")
-(rco-exp '(+ 2 (- (+ 3 4))))
-;(rco-arg '(let ([x 1]) x))
-;
-;; BAD exprs rco-exp
-;(check-equal? (rco-exp (list 2)) "panic!")
-;(check-equal? (rco-exp '(x)) "panic!")
-;(check-equal? (rco-exp (list '+)) "panic!")
-;(check-equal? (rco-exp #t) "panic!")
-;; BAD exprs rco-arg
-;(check-equal? (rco-arg #t) "panic!")
-;
-;; SIMPLE exprs SHOULD STAY SIMPLE
-;
+(displayln (rco-exp '(+ 2 (- (+ 3 4)))))
+(displayln (rco-arg '(let ([x 1]) x)))
+
+; BAD exprs rco-exp
+(check-equal? (rco-exp (list 2)) "panic!")
+(check-equal? (rco-exp '(x)) "panic!")
+(check-equal? (rco-exp (list '+)) "panic!")
+(check-equal? (rco-exp #t) "panic!")
+; BAD exprs rco-arg
+(check-equal? (rco-arg #t) "panic!")
 
 (displayln '(rco-exp '(+ (- 3) (- 4))))
 (displayln (rco-exp '(+ (- 3) (- 4))))
