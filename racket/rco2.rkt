@@ -76,7 +76,7 @@
     ; TODO let case should bind var to val in an alist and evaluate the body somehow 
     [(list 'let (list [list var val]) body) exprs]
     ; + and - need pattern match 1 or more
-    [(or (list (? op? op) _ ..1) (list (? is-read? op)))
+    [(or (list (? op? op) _ ..1))
          (let ([tmp-name (gensym 'tmp)])
                           (values tmp-name
                                   (list tmp-name exprs)))]
