@@ -5,6 +5,7 @@
 (define (make-let var val body)
   (list 'let (list [list var val]) body))
 
+
 (define not-empty? (λ (l) (not (empty? l))))
 ;test not empty
 (check-false (not-empty? '()))
@@ -21,7 +22,8 @@
      (error "rco-exp let case")]
     ; this case should call rco-arg on each of the args
     ; then build a new expr with bindings from the rco-arg calls
-    [(list op args ...) 
+    [(list op args ...)
+     (displayln (list "match-op-exprs" exprs))
      (define-values [syms alists]
        (for/lists (l1 l2) 
                 ([e exprs])
@@ -29,10 +31,14 @@
      (displayln (list "rco-exp syms " syms))
      (displayln (list "rco-exp alists " alists))
      ; loop over alists
-     (for/list ([pair alists]
-                [sym syms])
-       (match pair
+
+     ; generate the final expr by
+     (for/list ([binds alists] ; loop over both the binds
+                [sym syms])    ; and the corresponding syms
+       (match binds
+         ; match anything complex
          [(list var val) (make-let var val syms)]
+         ; match the op symbol for e.g.
          [_ sym]))]))
 
  ; Given an expr in R1, return a temp symbol name and an alist mapping from the symbol name to an expr in R1
@@ -44,7 +50,7 @@
     [(list 'let (list [list var val]) body) (error "rco-arg let case")]
     [(list op args ...) (let ([tmp-name (gensym 'tmp)])
                           (values tmp-name
-                                  (list tmp-name (rco-exp exprs))))]))
+                                  (list tmp-name exprs)))]))
 
 ; TEST HELPERS
 (define make-list-from-vals (λ (a b) (list a b)))
@@ -92,6 +98,8 @@
 ;(check-equal? (rco-exp (list 'read)) '(read))
 ;
 
+(displayln '(rco-exp '(+ (- 3) (- 4))))
+(displayln (rco-exp '(+ (- 3) (- 4))))
  
 
 (displayln "tests finished")
