@@ -2,6 +2,10 @@
 #lang racket
 (require rackunit)
 
+; https://docs.racket-lang.org/rackunit/api.html#%28def._%28%28lib._rackunit%2Fmain..rkt%29._check-exn%29%29
+(define (check-fail thunk)
+  (check-exn exn:fail? thunk))
+
 (define (make-let var val body)
   (list 'let (list [list var val]) body))
 
@@ -10,6 +14,32 @@
 ;test not empty
 (check-false (not-empty? '()))
 (check-true (not-empty? '(1 2)))
+
+; recursively generate bindings
+(define (make-nested-lets bindings body)
+  (cond [(empty? bindings) body] ; base base case
+        [else (match (first bindings)
+                [(? empty?)
+                 ; at this point bindings is not empty
+                 ; but (first bindings) is empty
+                 ; (rest bindings) is a perfectly safe call
+                 ; due to the nature of pairs in Racket
+                 ; i.e. keep recursing because there could be more bindings
+                 (make-nested-lets (rest bindings) body)]
+                [(list var val)
+                 (make-let var val (make-nested-lets (rest bindings) body))]
+                [_ (error "unexpected")])]))
+
+; TEST make-nested-lets
+(check-equal? (make-nested-lets (list (list 'tmp '(- 2))) 'body) '(let ((tmp (- 2))) body))
+(check-equal? (make-nested-lets (list) 'body) 'body)
+(check-fail (λ () (make-nested-lets (list 'foo 'bar) 'body)))
+(check-equal? (make-nested-lets (list '() '(tmp (- 2))) 'body) '(let [[tmp (- 2)]] body))
+; now a legit test case
+(check-equal? (make-nested-lets (list '(tmp1 (+ 3 4)) '(tmp2 (- 2))) '(+ tmp1 tmp2))
+              '(let [[tmp1 (+ 3 4)]]
+                    (let [[tmp2 (- 2)]]
+                         (+ tmp1 tmp2))))
 
 ; Given an expr in R1, return an expr in R1 without any complex subexpressions
 (define (rco-exp exprs) ; returns expr
