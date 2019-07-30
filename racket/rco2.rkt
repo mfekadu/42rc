@@ -58,7 +58,7 @@
     ; this case should call rco-arg on each of the args
     ; then build a new expr with bindings from the rco-arg calls
     ; + and - need pattern match 1 or more
-    [(or (list (? op? op) _ ..1) (list (? is-read? op)))
+    [(list (? op? op) _ ..1)
      (define-values [syms bindings]
        (for/lists (l1 l2) 
                 ([e exprs])
@@ -75,7 +75,7 @@
     ; TODO let case should bind var to val in an alist and evaluate the body somehow 
     [(list 'let (list [list var val]) body) exprs]
     ; + and - need pattern match 1 or more
-    [(or (list (? op? op) _ ..1))
+    [(list (? op? op) _ ..1)
          (let ([tmp-name (gensym 'tmp)])
                           (values tmp-name
                                   (list tmp-name exprs)))]
